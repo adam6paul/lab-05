@@ -1,7 +1,7 @@
 ---
 title: "Lab 04 - La Quinta is Spanish for next to Denny's, Pt. 2"
-author: "Insert your name here"
-date: "Insert date here"
+author: Adam Paul
+date: 5/6/2022
 output: github_document
 ---
 
@@ -9,19 +9,26 @@ output: github_document
 
 ```{r load-packages, message = FALSE}
 library(tidyverse) 
-library(dsbox) 
 ```
+
+I couldn't get the library to work so I removed that code so it would knit.
 
 ```{r load-data, message = FALSE}
 states <- read_csv("data/states.csv")
+dn <- read_csv("data/dennys.csv")
+lq <- read_csv("data/laquinta.csv")
 ```
 
 ### Exercise 1
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+1. Filter the Denny’s dataframe for Alaska (AK) and save the result as dn_ak. How many Denny’s locations are there in Alaska?
+
+```{r the many Dennys of AK}
+dn_ak <- dn %>%
+  filter(state == "AK")
+nrow(dn_ak)
+```
+
 
 ### Exercise 2
 
