@@ -15,42 +15,306 @@ I couldn't get the library to work so I removed that code so it would knit.
 
 ```{r load-data, message = FALSE}
 states <- read_csv("data/states.csv")
-dennys <- read_csv("data/dennys.rda")
-laquinta <- read_csv("data/laquinta.rda")
+load("data/dennys.rda")
+load("data/laquinta.rda")
 ```
+
+Since we're doing visualisations, I'm bringing in some of my portfolio code to make them look nicer and make the coding easier.
+
+, 
+```{r graph formatting code}
+vis_col =   
+  scale_fill_manual(values = c( #Color codes for the conditions, switched to colorblind friendly colors
+    "address.x" = "#E69F00",
+    "closest" = "#56B4E9"))
+
+vis_theme =  theme(panel.background = element_blank(), #makes the background invisible
+                   panel.grid.major.y = element_line(color = "#DAE1E7"), #makes the y-axis gridlines appear, but not x-axis
+axis.line = element_line(color = "black")) #makes the axis appear in a dark black color
+
+vis_text =     theme( #trbl are the margin signs, top, right, bottom, left
+    plot.title = element_text(size = 20, margin = margin(b = 5)),
+    plot.subtitle = element_text(size = 12, margin = margin(b= 10)),
+    axis.text = element_text(size = 12),
+    axis.title = element_text(size = 16, hjust = 1),    
+    axis.title.x = element_text(margin = margin(r= 10, t = 10)),
+    axis.title.y = element_text(margin = margin(r = 10)),
+    axis.text.y = element_text(margin = margin(r = 5)),
+    axis.text.x = element_text(margin = margin(t = 5)),
+  )
+```
+
+
+
 
 ### Exercise 1
 
-1. Filter the Denny’s dataframe for Alaska (AK) and save the result as dn_ak. How many Denny’s locations are there in Alaska?
+> Filter the Denny’s dataframe for Alaska (AK) and save the result as dn_ak. How many Denny’s locations are there in Alaska?
 
 ```{r the many Dennys of AK}
-dn_ak <- dn %>%
+dn_ak <- dennys %>%
   filter(state == "AK")
 nrow(dn_ak)
 ```
 
+There are 3 Denny's in Alaska.
+
 
 ### Exercise 2
 
-Remove this text, and add your answer for Exercise 1 here.
-Add code chunks as needed.
-Don't forget to label your code chunk.
-Do not use spaces in code chunk labels.
+>Filter the La Quinta dataframe for Alaska (AK) and save the result as lq_ak. How many La Quinta locations are there in Alaska?
+
+```{r the many laquintas of AK}
+lq_ak <- laquinta %>%
+  filter(state == "AK")
+nrow(lq_ak)
+```
+
+There are 2 La Quintas in Alaska.
 
 ### Exercise 3
 
-...
+>How many pairings are there between all Denny’s and all La Quinta locations in Alaska, i.e., how many distances do we need to calculate between the locations of these establishments in Alaska?
+
+There are six distances, because 2x3=6
 
 ### Exercise 4
 
-...
+Merging the two subset dataframes.
+
+```{r merging data frames}
+dn_lq_ak <- full_join(dn_ak, lq_ak, by = "state")
+dn_lq_ak
+```
+
+>How many observations are in the joined dn_lq_ak data frame? What are the names of the variables in this data frame.
+
+There are six observations, for each of the six possible matchings of restaurant to hotel. The variable names are taken from the original data frame and identified differentially by .x or .y.
+
+address.x, city.x, state, zip.x, longitude.x, latitude.x, address.y, city.y, zip.y, longitude.y, and latitude.y
+
 
 ### Exercise 5
 
-...
+What function from the tidyverse do we use the add a new variable to a data frame while keeping the existing variables?
+
+The function I would use is mutate, and mutate into a new variable name. Format similar to
+
+ds <- ds %>%
+  mutate(new_Var=case_when(
+  old_var ~ whatever is desired
+  ))
+
+Creating the function needed for calculating distance.
+
+```{r distance function}
+haversine <- function(long1, lat1, long2, lat2, round = 3) {
+  # convert to radians
+  long1 = long1 * pi / 180
+  lat1  = lat1  * pi / 180
+  long2 = long2 * pi / 180
+  lat2  = lat2  * pi / 180
+  
+  R = 6371 # Earth mean radius in km
+  
+  a = sin((lat2 - lat1)/2)^2 + cos(lat1) * cos(lat2) * sin((long2 - long1)/2)^2
+  d = R * 2 * asin(sqrt(a))
+  
+  return( round(d,round) ) # distance in km
+}
+```
+
 
 ### Exercise 6
 
-...
+>Calculate the distances between all pairs of Denny’s and La Quinta locations and save this variable as distance. Make sure to save this variable in THE dn_lq_ak data frame so that you can use it later.
 
-Add exercise headings as needed.
+```{r calculating distances}
+dn_lq_ak <- dn_lq_ak %>%
+  mutate(
+    distance= haversine(longitude.x, latitude.x, longitude.y, latitude.y)
+  )
+
+```
+
+### Exercise 7
+
+>Calculate the minimum distance between a Denny’s and La Quinta for each Denny’s location. To do so we group by Denny’s locations and calculate a new variable that stores the information for the minimum distance.
+
+```{r }
+dn_lq_ak_mindist <- dn_lq_ak %>%
+  group_by(address.x) %>%
+  summarize(closest = min(distance))
+
+```
+
+
+
+### Exercise 8
+
+>Describe the distribution of the distances Denny’s and the nearest La Quinta locations in Alaska. Also include an appripriate visualization and relevant summary statistics.
+
+```{r summary statistics}
+dn_lq_ak_mindist %>%
+summary(closest)
+```
+
+The closest distance between any Denny's and La Quinta is 2.035km, and the furthest is 5.998. The average distance is .4.410km, but the median is 5.197 because two are between 5-6km and one is a little over 2km.
+
+
+```{r}
+ggplot(dn_lq_ak_mindist, aes(x= closest)) +
+geom_histogram()
+```
+
+Okay, this is probably not needed, but I want to show that I did it.
+
+```{r AK visualisation}
+
+ggplot(dn_lq_ak_mindist, aes(x = address.x, y = closest, fill= address.x)) + 
+  geom_bar(stat='identity') +
+    guides(fill = FALSE) + # Allows the aes colors to be done manually.
+  vis_theme + 
+  labs(x= "Address",
+       y= "Distance (KM)",
+    title= "Dennys and La Quintas in Alaska") +
+     scale_fill_manual(values = c(
+    "1929 Airport Way" = "#E69F00",
+    "2900 Denali" = "#56B4E9",
+    "3850 Debarr Road" = "#009E73")) +
+  vis_text
+```
+
+
+
+### Exercise 9
+
+>Repeat the same analysis for North Carolina: (i) filter Denny’s and La Quinta Data Frames for NC, (ii) join these data frames to get a complete list of all possible pairings, (iii) calculate the distances between all possible pairings of Denny’s and La Quinta in NC, (iv) find the minimum distance between each Denny’s and La Quinta location, (v) visualize and describe the distribution of these shortest distances using appropriate summary statistics.
+
+```{r creating the subset for NC}
+dn_NC <- dennys %>% #Making the NC Dennys
+  filter(state == "NC")
+nrow(dn_NC)
+
+# There are 28 Denny's
+
+lq_NC <- laquinta %>% # MAking the NC laquinta
+  filter(state == "NC")
+nrow(lq_NC)
+
+# There are 12 Laquinta's
+
+dn_lq_NC <- full_join(dn_NC, lq_NC, by = "state")
+dn_lq_NC
+
+# There are 336 comparisons.
+
+dn_lq_NC <- mutate(dn_lq_NC, distance = haversine(longitude.x,latitude.x, longitude.y, latitude.y, round = 3))
+
+dn_lq_NC_mindist <- dn_lq_NC %>%
+  group_by(address.x) %>%
+  summarize(closest = min(distance))
+```
+
+```{r looking at the min distances}
+dn_lq_NC_mindist %>%
+summary(closest)
+
+ggplot(data = dn_lq_NC_mindist, aes(x = closest)) +
+  geom_histogram()
+
+```
+
+The closest  is 1.78 KM away, and the furthest is 187.94 KM away. The mean is 65.44 KM, and the median is 55.46.
+
+### Exercise 10
+
+>Repeat the same analysis for Texas.
+
+```{r creating the subset for TX}
+dn_tx <- dennys %>% 
+  filter(state == "TX")
+nrow(dn_tx)
+
+# There are 200 Denny's
+
+lq_tx <- laquinta %>% 
+  filter(state == "TX")
+nrow(lq_tx)
+
+# There are 237 Laquinta's
+
+dn_lq_tx <- full_join(dn_tx, lq_tx, by = "state")
+dn_lq_tx
+
+# There are 47,400 comparisons.
+
+dn_lq_tx <- mutate(dn_lq_tx, distance = haversine(longitude.x,latitude.x, longitude.y, latitude.y, round = 3))
+
+dn_lq_tx_mindist <- dn_lq_tx %>%
+  group_by(address.x) %>%
+  summarize(closest = min(distance))
+```
+
+```{r TX min distance}
+dn_lq_tx_mindist %>%
+summary(closest)
+
+ggplot(data = dn_lq_tx_mindist, aes(x = closest)) +
+  geom_histogram()
+
+```
+
+The closest is .02 KM, the furthest 60.58. The mean is 5.79, the median is 3.37.
+
+
+### Exercise 11
+
+>Repeat the same analysis for a state of your choosing, different than the ones we covered so far.
+
+I choose Tennessee.
+
+
+```{r creating the subset for TN}
+dn_tn <- dennys %>% 
+  filter(state == "TN")
+nrow(dn_tn)
+
+# There are 7 Denny's
+
+lq_tn <- laquinta %>% 
+  filter(state == "TN")
+nrow(lq_tn)
+
+# There are 30 Laquinta's
+
+dn_lq_tn <- full_join(dn_tn, lq_tn, by = "state")
+dn_lq_tn
+
+# There are 210 comparisons.
+
+dn_lq_tn <- mutate(dn_lq_tn, distance = haversine(longitude.x,latitude.x, longitude.y, latitude.y, round = 3))
+
+dn_lq_tn_mindist <- dn_lq_tn %>%
+  group_by(address.x) %>%
+  summarize(closest = min(distance))
+```
+
+```{r tn min distance}
+dn_lq_tn_mindist %>%
+summary(closest)
+
+ggplot(data = dn_lq_tn_mindist, aes(x = closest)) +
+  geom_histogram()
+
+```
+
+The closest is .28 KM, the furthest 33.80. The mean is 9.40, the median is 2.93.
+
+
+### Exercise 12
+
+>Among the states you examined, where is Mitch Hedberg’s joke most likely to hold true? Explain your reasoning.
+
+By far, Texas is the most accurate. Not only is the mean the lowest at 5.79KM, but the median is 3.37. Overwhelmingly, Denny's and Laquintas are in close proximity to one another.
+
